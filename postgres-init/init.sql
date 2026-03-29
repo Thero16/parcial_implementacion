@@ -1,0 +1,4 @@
+CREATE DATABASE cases;
+CREATE DATABASE people;
+CREATE DATABASE evidences;
+CREATE DATABASE keycloak;

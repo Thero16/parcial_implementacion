@@ -1,0 +1,229 @@
+services:
+
+  # ─────────────────────────────────────────
+  # DATABASE
+  # ─────────────────────────────────────────
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - apps-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # KEYCLOAK
+  # ─────────────────────────────────────────
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: keycloak
+    restart: unless-stopped
+    command: start-dev
+    environment:
+      KC_DB: ${KC_DB}
+      KC_DB_URL: ${KC_DB_URL}
+      KC_DB_USERNAME: ${KC_DB_USERNAME}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HTTP_PORT: ${KC_HTTP_PORT}
+    ports:
+      - "${KC_HTTP_PORT}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - apps-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:${KC_HTTP_PORT}/health/ready || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  # ─────────────────────────────────────────
+  # CONFIG SERVER
+  # ─────────────────────────────────────────
+  serversc:
+    build:
+      context: ./apps/serversc
+      dockerfile: Dockerfile
+    container_name: serversc
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+    networks:
+      - apps-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8888/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ─────────────────────────────────────────
+  # EUREKA
+  # ─────────────────────────────────────────
+  eureka:
+    build:
+      context: ./apps/eureka
+      dockerfile: Dockerfile
+    container_name: eureka
+    restart: unless-stopped
+    ports:
+      - "8761:8761"
+    depends_on:
+      serversc:
+        condition: service_healthy
+    networks:
+      - apps-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8761/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ─────────────────────────────────────────
+  # API GATEWAY
+  # ─────────────────────────────────────────
+  api-gateway:
+    build:
+      context: ./apps/api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      EUREKA_URL: ${EUREKA_URL}
+      KEYCLOAK_JWK_URI: ${KEYCLOAK_JWK_URI}
+    depends_on:
+      serversc:
+        condition: service_healthy
+      eureka:
+        condition: service_healthy
+    networks:
+      - apps-network
+
+  # ─────────────────────────────────────────
+  # CASE SERVICE
+  # ─────────────────────────────────────────
+  case-service:
+    build:
+      context: ./apps/case-service
+      dockerfile: Dockerfile
+    container_name: case-service
+    restart: unless-stopped
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${CASE_DB_NAME}
+      EUREKA_URL: ${EUREKA_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      serversc:
+        condition: service_healthy
+      eureka:
+        condition: service_healthy
+    networks:
+      - apps-network
+
+  # ─────────────────────────────────────────
+  # EVIDENCE SERVICE
+  # ─────────────────────────────────────────
+  evidence-service:
+    build:
+      context: ./apps/evidence-service
+      dockerfile: Dockerfile
+    container_name: evidence-service
+    restart: unless-stopped
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      EVIDENCE_DB_NAME: ${EVIDENCE_DB_NAME}
+      EUREKA_URL: ${EUREKA_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      serversc:
+        condition: service_healthy
+      eureka:
+        condition: service_healthy
+    networks:
+      - apps-network
+
+  # ─────────────────────────────────────────
+  # PEOPLE SERVICE
+  # ─────────────────────────────────────────
+  people-service:
+    build:
+      context: ./apps/people-service
+      dockerfile: Dockerfile
+    container_name: people-service
+    restart: unless-stopped
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      PEOPLE_DB_NAME: ${PEOPLE_DB_NAME}
+      EUREKA_URL: ${EUREKA_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      serversc:
+        condition: service_healthy
+      eureka:
+        condition: service_healthy
+    networks:
+      - apps-network
+
+  # ─────────────────────────────────────────
+  # FRONTEND
+  # ─────────────────────────────────────────
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: unless-stopped
+    ports:
+      - "5173:4173"
+    environment:
+      VITE_API_URL: ${VITE_API_URL}
+      VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL}
+      VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM}
+      VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID}
+    depends_on:
+      - api-gateway
+    networks:
+      - apps-network
+
+# ─────────────────────────────────────────
+# VOLUMES & NETWORKS
+# ─────────────────────────────────────────
+volumes:
+  postgres_data:
+
+networks:
+  apps-network:
+    driver: bridge
