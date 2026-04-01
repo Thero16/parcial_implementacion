@@ -2,7 +2,6 @@ package com.nomolestar.apigateway.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -11,15 +10,12 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 import reactor.core.publisher.Flux;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebFluxSecurity
 public class SecurityConfig {
-
-    private static final String CLIENT_ID = "api-gateway";
 
     @Bean
     public SecurityWebFilterChain securityFilterChain(ServerHttpSecurity http) {
@@ -40,17 +36,13 @@ public class SecurityConfig {
         ReactiveJwtAuthenticationConverter converter = new ReactiveJwtAuthenticationConverter();
 
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
-            Map<String, Object> resourceAccess = jwt.getClaim("resource_access");
+            Map<String, Object> realmAccess = jwt.getClaim("realm_access");
 
-            if (resourceAccess == null || !resourceAccess.containsKey(CLIENT_ID)) {
+            if (realmAccess == null || !realmAccess.containsKey("roles")) {
                 return Flux.empty();
             }
 
-            Map<String, Object> client =
-                    (Map<String, Object>) resourceAccess.get(CLIENT_ID);
-
-            Collection<String> roles =
-                    (Collection<String>) client.get("roles");
+            Collection<String> roles = (Collection<String>) realmAccess.get("roles");
 
             return Flux.fromIterable(
                     roles.stream()
