@@ -26,14 +26,14 @@ spring:
         - id: evidence-service
           uri: lb://evidence-service
           predicates:
-            - Path=/evidence/**
+            - Path=/evidences/**
 
   security:
     oauth2:
       resourceserver:
         jwt:
           jwk-set-uri: ${KEYCLOAK_JWK_URI}
-
+          issuer-uri: ${KEYCLOAK_ISSUER_URI}
 eureka:
   client:
     service-url:

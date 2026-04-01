@@ -14,6 +14,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+    defer-datasource-initialization: true
     show-sql: true
     properties:
       hibernate:
@@ -23,6 +24,16 @@ spring:
   sql:
     init:
       mode: always
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${KEYCLOAK_JWK_URI}
+          issuer-uri: ${KEYCLOAK_ISSUER_URI}
+services:
+  case-service:
+    url: http://case-service:8081/cases
 
 eureka:
   client:
