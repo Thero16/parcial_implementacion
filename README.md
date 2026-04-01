@@ -136,6 +136,7 @@ KC_HTTP_PORT=8080
 KEYCLOAK_REALM=spring
 KEYCLOAK_AUTH_SERVER=http://keycloak:8080
 KEYCLOAK_JWK_URI=http://keycloak:8080/realms/spring/protocol/openid-connect/certs
+KEYCLOAK_ISSUER_URI=http://localhost:8080/realms/spring
 
 # Eureka
 EUREKA_URL=http://eureka:8761/eureka/
