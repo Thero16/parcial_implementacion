@@ -111,6 +111,7 @@ services:
     environment:
       EUREKA_URL: ${EUREKA_URL}
       KEYCLOAK_JWK_URI: ${KEYCLOAK_JWK_URI}
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI}
     depends_on:
       serversc:
         condition: service_healthy
@@ -134,7 +135,10 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${CASE_DB_NAME}
+      CASE_DB_NAME: ${CASE_DB_NAME}
       EUREKA_URL: ${EUREKA_URL}
+      KEYCLOAK_JWK_URI: ${KEYCLOAK_JWK_URI}
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI}
     depends_on:
       postgres:
         condition: service_healthy
@@ -161,6 +165,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       EVIDENCE_DB_NAME: ${EVIDENCE_DB_NAME}
       EUREKA_URL: ${EUREKA_URL}
+      KEYCLOAK_JWK_URI: ${KEYCLOAK_JWK_URI}
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI}
     depends_on:
       postgres:
         condition: service_healthy
@@ -187,6 +193,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       PEOPLE_DB_NAME: ${PEOPLE_DB_NAME}
       EUREKA_URL: ${EUREKA_URL}
+      KEYCLOAK_JWK_URI: ${KEYCLOAK_JWK_URI}
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI}
     depends_on:
       postgres:
         condition: service_healthy
