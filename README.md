@@ -140,6 +140,10 @@ KEYCLOAK_ISSUER_URI=http://localhost:8080/realms/spring
 
 # Eureka
 EUREKA_URL=http://eureka:8761/eureka/
+
+# RabbitMQ
+RABBITMQ_USER=admin
+RABBITMQ_PASSWORD=admin123
 ```
 
 #### 📁 Frontend `.env` — place inside the `frontend/` folder
