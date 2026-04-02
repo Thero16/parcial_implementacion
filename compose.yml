@@ -113,6 +113,8 @@ services:
       KEYCLOAK_JWK_URI: ${KEYCLOAK_JWK_URI}
       KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI}
     depends_on:
+      rabbitmq:
+        condition: service_healthy
       serversc:
         condition: service_healthy
       eureka:
@@ -140,6 +142,8 @@ services:
       KEYCLOAK_JWK_URI: ${KEYCLOAK_JWK_URI}
       KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI}
     depends_on:
+      rabbitmq:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       serversc:
@@ -168,6 +172,8 @@ services:
       KEYCLOAK_JWK_URI: ${KEYCLOAK_JWK_URI}
       KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI}
     depends_on:
+      rabbitmq:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       serversc:
@@ -196,6 +202,8 @@ services:
       KEYCLOAK_JWK_URI: ${KEYCLOAK_JWK_URI}
       KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI}
     depends_on:
+      rabbitmq:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       serversc:
@@ -226,11 +234,35 @@ services:
     networks:
       - apps-network
 
+  # ─────────────────────────────────────────
+  # RABBITMQ
+  # ─────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"     # conexion apps
+      - "15672:15672"   # UI web
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - apps-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 # ─────────────────────────────────────────
 # VOLUMES & NETWORKS
 # ─────────────────────────────────────────
 volumes:
   postgres_data:
+  rabbitmq_data:
 
 networks:
   apps-network:
