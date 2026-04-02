@@ -4,7 +4,7 @@
 // ─────────────────────────────────────────────────────────────────
 
 export interface KeycloakConfig {
-  url: string;         // Keycloak server URL (e.g. http://localhost:8080)
+  url: string;         // Keycloak server URL 
   realm: string;       // Your realm name
   clientId: string;    // Your client ID
 }
