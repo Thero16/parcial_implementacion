@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { getCases, deleteCase } from "../services/caseService";
 import { hasRole } from "../auth/roles.utils";
 import CaseModal from "../components/CaseModal";
+import CaseDetailModal from "../components/CaseDetailModal";
 
 // ── Mini moon logo ────────────────────────────────────────────
 function MoonLogo() {
@@ -54,6 +55,7 @@ export default function CasesPage() {
   const [loadingCases, setLoadingCases] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCase, setEditingCase] = useState<any>(null);
+  const [detailCase, setDetailCase] = useState<any>(null);
 
   async function loadCases() {
     try {
@@ -219,7 +221,8 @@ export default function CasesPage() {
                 {cases.map((c) => (
                   <tr
                     key={c.id}
-                    className="border-b border-white/5 hover:bg-white/[0.04] transition-colors duration-150"
+                    onClick={() => setDetailCase(c)}
+                    className="border-b border-white/5 hover:bg-white/[0.04] transition-colors duration-150 cursor-pointer"
                   >
                     <td className="p-4 font-elite text-[0.65rem] tracking-widest text-white/40">
                       #{c.id}
@@ -246,7 +249,11 @@ export default function CasesPage() {
                     </td>
 
                     <td className="p-4">
-                      <div className="flex justify-end gap-2">
+                      {/* stopPropagation para que los botones no abran el detalle */}
+                      <div
+                        className="flex justify-end gap-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         {(hasRole("ADMIN") || hasRole("DETECTIVE")) && (
                           <button
                             onClick={() => {
@@ -285,7 +292,15 @@ export default function CasesPage() {
         <span>Confidential information — internal use only</span>
       </footer>
 
-      {/* ── Modal ── */}
+      {/* ── Case Detail Modal ── */}
+      {detailCase && (
+        <CaseDetailModal
+          caseData={detailCase}
+          onClose={() => setDetailCase(null)}
+        />
+      )}
+
+      {/* ── Edit/Create Modal ── */}
       {modalOpen && (
         <CaseModal
           caseData={editingCase}
@@ -302,11 +317,10 @@ export default function CasesPage() {
 
 function PriorityBadge({ value }: { value: string }) {
   const colors: Record<string, string> = {
-    LOW: "border-green-500/40 text-green-400/80",
+    LOW:    "border-green-500/40 text-green-400/80",
     MEDIUM: "border-yellow-500/40 text-yellow-400/80",
-    HIGH: "border-red-500/40 text-red-400/80",
+    HIGH:   "border-red-500/40 text-red-400/80",
   };
-
   return (
     <span className={`font-elite text-[0.58rem] tracking-[0.15em] uppercase px-2 py-1 border ${colors[value] ?? "border-white/20 text-white/40"}`}>
       {value}
@@ -316,11 +330,10 @@ function PriorityBadge({ value }: { value: string }) {
 
 function StatusBadge({ value }: { value: string }) {
   const colors: Record<string, string> = {
-    OPEN: "border-blue-500/40 text-blue-400/80",
+    OPEN:        "border-blue-500/40 text-blue-400/80",
     IN_PROGRESS: "border-yellow-500/40 text-yellow-400/80",
-    CLOSED: "border-white/15 text-white/35",
+    CLOSED:      "border-white/15 text-white/35",
   };
-
   return (
     <span className={`font-elite text-[0.58rem] tracking-[0.15em] uppercase px-2 py-1 border ${colors[value] ?? "border-white/20 text-white/40"}`}>
       {value.replace("_", " ")}

@@ -1,4 +1,6 @@
-const API = "http://localhost:9000/cases";
+const API_BASE= import.meta.env.VITE_API_URL;
+
+const API = `${API_BASE}/cases`;
 
 function getToken() {
   const match = document.cookie.match(/access_token=([^;]+)/);
