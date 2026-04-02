@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
   isAuthenticated,
+  isAccessTokenExpired,
   fetchUserInfo,
   parseIdToken,
   logout as authLogout,
@@ -21,7 +22,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser]                   = useState<UserInfo | null>(null);
   const [loading, setLoading]             = useState(true);
-  const [authenticated, setAuthenticated] = useState(false); // ← reactive state
+  const [authenticated, setAuthenticated] = useState(false);
 
   const loadUser = useCallback(async () => {
     if (!isAuthenticated()) {
@@ -31,7 +32,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Fast path: parse ID token from cookie (no network request)
+    // Si el access token está expirado, refrescar primero
+    if (isAccessTokenExpired()) {
+      const refreshed = await refreshAccessToken();
+      if (!refreshed) {
+        setUser(null);
+        setAuthenticated(false);
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Fast path: parsear ID token desde cookie
     const fromToken = parseIdToken();
     if (fromToken) {
       setUser(fromToken);
@@ -40,40 +52,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Slow path: call userinfo endpoint
+    // Slow path: llamar al endpoint userinfo
     try {
       const info = await fetchUserInfo();
       setUser(info);
       setAuthenticated(true);
     } catch {
-      // Token may be expired — try refreshing
-      const refreshed = await refreshAccessToken();
-      if (refreshed) {
-        try {
-          const info = await fetchUserInfo();
-          setUser(info);
-          setAuthenticated(true);
-        } catch {
-          setUser(null);
-          setAuthenticated(false);
-        }
-      } else {
-        setUser(null);
-        setAuthenticated(false);
-      }
+      setUser(null);
+      setAuthenticated(false);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { loadUser(); }, [loadUser]);
+  useEffect(() => {
+    loadUser();
+
+    // Refresca el token cada 4 minutos en segundo plano
+    const interval = setInterval(async () => {
+      if (isAuthenticated() && isAccessTokenExpired()) {
+        const refreshed = await refreshAccessToken();
+        if (!refreshed) authLogout();
+      }
+    }, 4 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [loadUser]);
 
   return (
     <AuthContext.Provider
       value={{
         user,
         loading,
-        authenticated, // ← comes from state, not from isAuthenticated()
+        authenticated,
         logout: authLogout,
         refreshUser: loadUser,
       }}

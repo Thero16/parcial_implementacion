@@ -11,9 +11,8 @@ export const COOKIE_ACCESS_TOKEN  = 'll_access_token';
 export const COOKIE_REFRESH_TOKEN = 'll_refresh_token';
 export const COOKIE_ID_TOKEN      = 'll_id_token';
 
-// Cookie options — adjust `secure: true` and `sameSite` for production
 const COOKIE_OPTIONS: Cookies.CookieAttributes = {
-  expires: 1,           // 1 day
+  expires: 1,
   secure: window.location.protocol === 'https:',
   sameSite: 'Strict',
   path: '/',
@@ -83,9 +82,6 @@ function redirectUri(): string {
 
 // ── Core auth functions ───────────────────────────────────────────
 
-/**
- * Step 1 — Redirect the browser to Keycloak's login page (PKCE flow).
- */
 export async function initiateLogin(): Promise<void> {
   const verifier  = generateCodeVerifier();
   const challenge = await generateCodeChallenge(verifier);
@@ -107,10 +103,6 @@ export async function initiateLogin(): Promise<void> {
   window.location.href = `${authEndpoint()}?${params.toString()}`;
 }
 
-/**
- * Step 2 — Exchange the authorization code for tokens.
- * Called from the /callback route.
- */
 export async function handleCallback(code: string, returnedState: string): Promise<TokenSet> {
   const verifier = sessionStorage.getItem('pkce_verifier');
   const state    = sessionStorage.getItem('pkce_state');
@@ -145,18 +137,12 @@ export async function handleCallback(code: string, returnedState: string): Promi
   return tokens;
 }
 
-/**
- * Save tokens to cookies.
- */
 export function saveTokens(tokens: TokenSet): void {
   Cookies.set(COOKIE_ACCESS_TOKEN, tokens.access_token, COOKIE_OPTIONS);
   if (tokens.refresh_token) Cookies.set(COOKIE_REFRESH_TOKEN, tokens.refresh_token, COOKIE_OPTIONS);
   if (tokens.id_token)      Cookies.set(COOKIE_ID_TOKEN, tokens.id_token, COOKIE_OPTIONS);
 }
 
-/**
- * Read tokens from cookies.
- */
 export function getTokens(): Partial<TokenSet> {
   return {
     access_token:  Cookies.get(COOKIE_ACCESS_TOKEN),
@@ -165,25 +151,32 @@ export function getTokens(): Partial<TokenSet> {
   };
 }
 
-/**
- * Clear all auth cookies.
- */
 export function clearTokens(): void {
   Cookies.remove(COOKIE_ACCESS_TOKEN,  { path: '/' });
   Cookies.remove(COOKIE_REFRESH_TOKEN, { path: '/' });
   Cookies.remove(COOKIE_ID_TOKEN,      { path: '/' });
 }
 
-/**
- * Check if the user has a valid (present) access token.
- */
 export function isAuthenticated(): boolean {
   return !!Cookies.get(COOKIE_ACCESS_TOKEN);
 }
 
 /**
- * Refresh the access token using the refresh token.
+ * Decode the access token and check if it's expired (with 30s buffer).
  */
+export function isAccessTokenExpired(): boolean {
+  const accessToken = Cookies.get(COOKIE_ACCESS_TOKEN);
+  if (!accessToken) return true;
+
+  try {
+    const payload = accessToken.split('.')[1];
+    const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    return decoded.exp * 1000 < Date.now() + 30_000;
+  } catch {
+    return true;
+  }
+}
+
 export async function refreshAccessToken(): Promise<TokenSet | null> {
   const refreshToken = Cookies.get(COOKIE_REFRESH_TOKEN);
   if (!refreshToken) return null;
@@ -210,9 +203,6 @@ export async function refreshAccessToken(): Promise<TokenSet | null> {
   return tokens;
 }
 
-/**
- * Fetch user info from Keycloak using the access token.
- */
 export async function fetchUserInfo(): Promise<UserInfo> {
   const accessToken = Cookies.get(COOKIE_ACCESS_TOKEN);
   if (!accessToken) throw new Error('No access token');
@@ -225,10 +215,6 @@ export async function fetchUserInfo(): Promise<UserInfo> {
   return response.json();
 }
 
-/**
- * Parse user info from the ID token (JWT) without network request.
- * Falls back to fetchUserInfo if no ID token is available.
- */
 export function parseIdToken(): UserInfo | null {
   const idToken = Cookies.get(COOKIE_ID_TOKEN);
   if (!idToken) return null;
@@ -242,9 +228,6 @@ export function parseIdToken(): UserInfo | null {
   }
 }
 
-/**
- * Logout — clear cookies and redirect to Keycloak logout.
- */
 export function logout(): void {
   const idToken = Cookies.get(COOKIE_ID_TOKEN);
   clearTokens();
