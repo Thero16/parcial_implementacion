@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage    from './pages/LoginPage';
 import CallbackPage from './pages/CallbackPage';
 import DashboardPage from './pages/DashboardPage';
+import CasesPage from './pages/CasesPage';
 
 export default function App() {
   return (
@@ -22,6 +23,14 @@ export default function App() {
             }
           />
           <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route
+            path="/dashboard/cases"
+            element={
+              <ProtectedRoute>
+              <CasesPage />
+            </ProtectedRoute>
+          }
+          />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
