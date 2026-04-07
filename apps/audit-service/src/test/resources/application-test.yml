@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: case-service
+  config:
+    import: ${SPRING_CONFIG_IMPORT:optional:configserver:http://serversc:8888}
+

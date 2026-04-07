@@ -4,8 +4,10 @@ import com.nomolestar.evidenceservice.dto.EvidenceCreateDTO;
 import com.nomolestar.evidenceservice.dto.EvidenceCustodyHistoryResponseDTO;
 import com.nomolestar.evidenceservice.dto.EvidenceResponseDTO;
 import com.nomolestar.evidenceservice.dto.EvidenceUpdateDTO;
+import com.nomolestar.evidenceservice.events.EvidenceAddedEvent;
 import com.nomolestar.evidenceservice.exceptions.ResourceNotFoundException;
 import com.nomolestar.evidenceservice.mapper.EvidenceMapper;
+import com.nomolestar.evidenceservice.messaging.EvidenceEventPublisher;
 import com.nomolestar.evidenceservice.model.EvidenceCustodyHistoryEntity;
 import com.nomolestar.evidenceservice.model.EvidenceEntity;
 import com.nomolestar.evidenceservice.repository.EvidenceCustodyHistoryRepository;
@@ -26,16 +28,19 @@ public class EvidenceService {
     private final EvidenceRepository evidenceRepository;
     private final EvidenceCustodyHistoryRepository custodyHistoryRepository;
     private final WebClient webClient;
+    private final EvidenceEventPublisher evidenceEventPublisher;
 
     @Value("${services.case-service.url}")
     private String caseServiceUrl;
 
     public EvidenceService(EvidenceRepository evidenceRepository,
                            EvidenceCustodyHistoryRepository custodyHistoryRepository,
-                           WebClient.Builder webClientBuilder) {
+                           WebClient.Builder webClientBuilder,
+                           EvidenceEventPublisher evidenceEventPublisher) {
         this.evidenceRepository = evidenceRepository;
         this.custodyHistoryRepository = custodyHistoryRepository;
         this.webClient = webClientBuilder.build();
+        this.evidenceEventPublisher = evidenceEventPublisher;
     }
 
     public List<EvidenceResponseDTO> findAll() {
@@ -91,6 +96,14 @@ public class EvidenceService {
                 .build();
 
         custodyHistoryRepository.save(initialHistory);
+
+        EvidenceAddedEvent event = new EvidenceAddedEvent(
+                savedEvidence.getEvidenceId(),
+                savedEvidence.getCaseId(),
+                savedEvidence.getEvidenceType().name(),
+                savedEvidence.getCollectedBy()
+        );
+        evidenceEventPublisher.publishEvidenceAdded(event);
 
         return EvidenceMapper.toResponse(savedEvidence);
     }

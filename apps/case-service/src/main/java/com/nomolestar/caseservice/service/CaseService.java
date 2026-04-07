@@ -3,8 +3,10 @@ package com.nomolestar.caseservice.service;
 import com.nomolestar.caseservice.dto.CaseCreateDTO;
 import com.nomolestar.caseservice.dto.CaseResponseDTO;
 import com.nomolestar.caseservice.dto.CaseUpdateDTO;
+import com.nomolestar.caseservice.events.CaseCreatedEvent;
 import com.nomolestar.caseservice.exceptions.ResourceNotFoundException;
 import com.nomolestar.caseservice.mapper.CaseMapper;
+import com.nomolestar.caseservice.messaging.CaseEventPublisher;
 import com.nomolestar.caseservice.model.CaseEntity;
 import com.nomolestar.caseservice.repository.CaseRepository;
 import org.springframework.stereotype.Service;
@@ -16,9 +18,11 @@ import java.util.stream.Collectors;
 public class CaseService {
 
     private final CaseRepository caseRepository;
+    private final CaseEventPublisher caseEventPublisher;
 
-    public CaseService(CaseRepository caseRepository) {
+    public CaseService(CaseRepository caseRepository, CaseEventPublisher caseEventPublisher) {
         this.caseRepository = caseRepository;
+        this.caseEventPublisher = caseEventPublisher;
     }
 
     public List<CaseResponseDTO> findAll() {
@@ -40,6 +44,14 @@ public class CaseService {
     public CaseResponseDTO create(CaseCreateDTO dto) {
         CaseEntity caseEntity = CaseMapper.toEntity(dto);
         CaseEntity savedCase = caseRepository.save(caseEntity);
+
+        CaseCreatedEvent event = new CaseCreatedEvent(
+                savedCase.getId(),
+                savedCase.getTitle(),
+                savedCase.getAssignedDetective(),
+                savedCase.getStatus().name()
+        );
+        caseEventPublisher.publishCaseCreated(event);
 
         return CaseMapper.toCaseResponseDTO(savedCase);
     }

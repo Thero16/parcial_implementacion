@@ -1,0 +1,4 @@
+com/nomolestar/notificationservice/unit/NotificationServiceTest.class
+com/nomolestar/notificationservice/e2e/NotificationE2ETest.class
+com/nomolestar/notificationservice/integration/NotificationControllerTest.class
+com/nomolestar/notificationservice/e2e/NotificationE2ETest$TestSecurityConfig.class

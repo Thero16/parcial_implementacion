@@ -1,0 +1,17 @@
+com/nomolestar/notificationservice/repository/NotificationRepository.class
+com/nomolestar/notificationservice/exceptions/ResourceNotFoundException.class
+com/nomolestar/notificationservice/events/TaskAssignedEvent.class
+com/nomolestar/notificationservice/config/RabbitMQConfig.class
+com/nomolestar/notificationservice/config/SecurityConfig.class
+com/nomolestar/notificationservice/model/NotificationEntity$NotificationEntityBuilder.class
+com/nomolestar/notificationservice/enums/NotificationType.class
+com/nomolestar/notificationservice/controller/NotificationController.class
+com/nomolestar/notificationservice/dto/NotificationResponseDTO.class
+com/nomolestar/notificationservice/model/NotificationEntity.class
+com/nomolestar/notificationservice/NotificationServiceApplication.class
+com/nomolestar/notificationservice/mapper/NotificationMapper.class
+com/nomolestar/notificationservice/exceptions/ErrorResponse.class
+com/nomolestar/notificationservice/service/NotificationService.class
+com/nomolestar/notificationservice/exceptions/GlobalExceptionHandler.class
+com/nomolestar/notificationservice/messaging/NotificationEventListener.class
+com/nomolestar/notificationservice/events/EvidenceAddedEvent.class

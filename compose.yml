@@ -214,6 +214,108 @@ services:
       - apps-network
 
   # ─────────────────────────────────────────
+  # WORKFLOW SERVICE
+  # ─────────────────────────────────────────
+  workflow-service:
+    build:
+      context: ./apps/workflow-service
+      dockerfile: Dockerfile
+    container_name: workflow-service
+    restart: unless-stopped
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      WORKFLOW_DB_NAME: ${WORKFLOW_DB_NAME}
+      EUREKA_URL: ${EUREKA_URL}
+      KEYCLOAK_JWK_URI: ${KEYCLOAK_JWK_URI}
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      serversc:
+        condition: service_healthy
+      eureka:
+        condition: service_healthy
+    networks:
+      - apps-network
+
+  # ─────────────────────────────────────────
+  # AUDIT SERVICE
+  # ─────────────────────────────────────────
+  audit-service:
+    build:
+      context: ./apps/audit-service
+      dockerfile: Dockerfile
+    container_name: audit-service
+    restart: unless-stopped
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      AUDIT_DB_NAME: ${AUDIT_DB_NAME}
+      EUREKA_URL: ${EUREKA_URL}
+      KEYCLOAK_JWK_URI: ${KEYCLOAK_JWK_URI}
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      serversc:
+        condition: service_healthy
+      eureka:
+        condition: service_healthy
+    networks:
+      - apps-network
+
+  # ─────────────────────────────────────────
+  # NOTIFICATION SERVICE
+  # ─────────────────────────────────────────
+  notification-service:
+    build:
+      context: ./apps/notification-service
+      dockerfile: Dockerfile
+    container_name: notification-service
+    restart: unless-stopped
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      NOTIFICATION_DB_NAME: ${NOTIFICATION_DB_NAME}
+      EUREKA_URL: ${EUREKA_URL}
+      KEYCLOAK_JWK_URI: ${KEYCLOAK_JWK_URI}
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      serversc:
+        condition: service_healthy
+      eureka:
+        condition: service_healthy
+    networks:
+      - apps-network
+
+  # ─────────────────────────────────────────
   # FRONTEND
   # ─────────────────────────────────────────
   frontend:

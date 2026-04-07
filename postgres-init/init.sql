@@ -2,3 +2,6 @@ CREATE DATABASE cases;
 CREATE DATABASE people;
 CREATE DATABASE evidences;
 CREATE DATABASE keycloak;
+CREATE DATABASE tasks_db;
+CREATE DATABASE audit_db;
+CREATE DATABASE notifications_db;

@@ -307,3 +307,149 @@ Inside the `spring` realm, go to **Clients → Create client** and create the fo
 | Service Discovery | Netflix Eureka |
 | Database | PostgreSQL |
 | Containerization | Docker / Docker Compose |
+
+---
+
+## Testing Strategy
+
+### Objective
+
+The test suite validates the correctness of the business logic, the interaction between application layers, and the real HTTP behavior of each microservice's API. Tests are organized into three levels — unit, integration, and end-to-end — following the Testing Pyramid approach.
+
+---
+
+### Test Classification
+
+Each of the six business microservices (case-service, evidence-service, people-service, workflow-service, audit-service, notification-service) contains three types of tests:
+
+| Type | Framework | Scope |
+|---|---|---|
+| **Unit** | JUnit 5 + Mockito | Service layer in isolation — dependencies mocked |
+| **Integration** | Spring `@WebMvcTest` + MockMvc | Controller + Service wired together, no real HTTP |
+| **E2E** | Spring `@SpringBootTest` + `TestRestTemplate` | Full application stack, real HTTP on a random port |
+
+#### Unit Tests — `unit/`
+
+Each `XxxServiceTest` class covers the service methods in complete isolation:
+
+| Service | Test class | Scenarios covered |
+|---|---|---|
+| Case | `CaseServiceTest` | `findAll` returns list / empty list; `findById` found / not found; `create` saves and publishes event; `updateById` updates and returns; `deleteById` deletes / throws when not found |
+| Evidence | `EvidenceServiceTest` | `findAll`; `findById` found / not found; `findByCaseId`; `create` saves, records initial custody, publishes event; `updateById` updates custody history on custodian change; `deleteById` |
+| People | `PersonServiceTest` | `findAll`; `findById` found / not found; `create`; `updateById`; `deleteById` |
+| Workflow | `TaskServiceTest` | `findAll`; `findById`; `create` with and without assignee; `updateById` re-assigns; `deleteById`; overdue check publishes event and marks status |
+| Audit | `AuditLogServiceTest` | `findAll`; `save` persists correctly |
+| Notification | `NotificationServiceTest` | `findAll`; `save` persists correctly |
+
+#### Integration Tests — `integration/`
+
+Each `XxxControllerTest` uses `@WebMvcTest` and `MockMvc` to test the full controller-to-service pipeline without starting a real server or connecting to a database. Keycloak JWT validation is disabled via the test profile.
+
+| Service | Test class | Scenarios covered |
+|---|---|---|
+| Case | `CaseControllerTest` | `GET /cases` 200; `GET /cases/{id}` 200 / 404; `POST /cases` 201; `PUT /cases/{id}` 200; `DELETE /cases/{id}` 204 |
+| Evidence | `EvidenceControllerTest` | `GET /evidences`; `GET /evidences/{id}`; `GET /evidences/case/{caseId}`; `GET /evidences/{id}/custody`; `POST /evidences` 201; `PUT /evidences/{id}`; `DELETE /evidences/{id}` |
+| People | `PersonControllerTest` | `GET /people`; `GET /people/{id}`; `POST /people` 201; `PUT /people/{id}`; `DELETE /people/{id}` |
+| Workflow | `TaskControllerTest` | `GET /tasks`; `GET /tasks/{id}`; `GET /tasks/case/{caseId}`; `POST /tasks` 201; `PUT /tasks/{id}`; `DELETE /tasks/{id}` |
+| Audit | `AuditLogControllerTest` | `GET /audit-logs`; `GET /audit-logs/{id}` |
+| Notification | `NotificationControllerTest` | `GET /notifications`; `GET /notifications/{id}` |
+
+#### E2E Tests — `e2e/`
+
+Each `XxxE2ETest` boots the full Spring context on a random port using `@SpringBootTest(webEnvironment = RANDOM_PORT)` and sends real HTTP requests via `TestRestTemplate`. An H2 in-memory database (PostgreSQL compatibility mode) is used instead of the real PostgreSQL instance.
+
+| Service | Test class | Scenarios covered |
+|---|---|---|
+| Case | `CaseE2ETest` | Create case → 201; retrieve by ID → 200; list all → 200; update → 200; delete → 204; retrieve deleted → 404 |
+| Evidence | `EvidenceE2ETest` | Create evidence → 201; retrieve by ID → 200; get custody history → 200; update custodian → records new history entry; delete → 204 |
+| People | `PersonE2ETest` | Create person → 201; retrieve by ID → 200; update → 200; delete → 204; retrieve deleted → 404 |
+| Workflow | `TaskE2ETest` | Create task → 201; retrieve by ID → 200; list by caseId → 200; update → 200; delete → 204 |
+| Audit | `AuditLogE2ETest` | List audit logs → 200; retrieve by ID → 200 |
+| Notification | `NotificationE2ETest` | List notifications → 200; retrieve by ID → 200 |
+
+---
+
+### Test Environment Configuration
+
+All services share the same test profile pattern. The file `src/test/resources/application-test.yml` is activated via `@ActiveProfiles("test")` and configures:
+
+- **H2 in-memory database** (PostgreSQL compatibility mode) — no external database required
+- **Spring Cloud Config disabled** — `spring.cloud.config.enabled: false`
+- **Keycloak JWT disabled** — `jwk-set-uri` points to a non-existent local address so security filters are bypassed by test configuration
+- **DDL auto: create-drop** — schema is recreated for each test run
+
+```yaml
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+  cloud:
+    config:
+      enabled: false
+  config:
+    import: ""
+```
+
+---
+
+### How to Run Tests Locally
+
+#### Prerequisites
+
+- Java 21+
+- Maven 3.8+
+- No running Docker/PostgreSQL required (tests use H2)
+
+#### Run all tests for a single service
+
+```bash
+mvn test -pl apps/case-service
+mvn test -pl apps/evidence-service
+mvn test -pl apps/people-service
+mvn test -pl apps/workflow-service
+mvn test -pl apps/audit-service
+mvn test -pl apps/notification-service
+```
+
+#### Run all backend tests at once
+
+```bash
+mvn test --projects apps/case-service,apps/evidence-service,apps/people-service,apps/workflow-service,apps/audit-service,apps/notification-service
+```
+
+#### Run only unit tests
+
+```bash
+mvn test -pl apps/case-service -Dtest="**/unit/**"
+```
+
+#### Run only integration tests
+
+```bash
+mvn test -pl apps/case-service -Dtest="**/integration/**"
+```
+
+#### Run only E2E tests
+
+```bash
+mvn test -pl apps/case-service -Dtest="**/e2e/**"
+```
+
+---
+
+### Conclusions
+
+| Aspect | Assessment |
+|---|---|
+| **Layer coverage** | All three testing layers (unit, integration, E2E) are implemented for each of the six business services |
+| **Business rule coverage** | Key rules are exercised: ADMIN-only delete, chain of custody recording on custodian change, default task creation on CaseCreated, overdue task detection |
+| **Event-driven coverage** | Unit tests verify event publishing via mocked `RabbitTemplate`; integration tests mock the publisher component |
+| **Error path coverage** | Not-found exceptions (404), validation errors (400), and unauthorized access are covered in both integration and E2E tests |
+| **Test isolation** | Each test is fully isolated — H2 resets between runs, no shared state between test classes |
+| **Improvement areas** | RabbitMQ consumer logic (listeners) could benefit from dedicated unit tests using embedded broker; contract tests between services would strengthen the event-driven guarantees |
