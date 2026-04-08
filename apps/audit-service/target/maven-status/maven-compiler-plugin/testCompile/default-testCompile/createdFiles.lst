@@ -1,4 +1,0 @@
-com/nomolestar/auditservice/unit/AuditLogServiceTest.class
-com/nomolestar/auditservice/integration/AuditLogControllerTest.class
-com/nomolestar/auditservice/e2e/AuditLogE2ETest.class
-com/nomolestar/auditservice/e2e/AuditLogE2ETest$TestSecurityConfig.class

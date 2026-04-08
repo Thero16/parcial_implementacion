@@ -1,5 +1,0 @@
-spring:
-  application:
-    name: workflow-service
-  config:
-    import: ${SPRING_CONFIG_IMPORT:optional:configserver:http://serversc:8888}
