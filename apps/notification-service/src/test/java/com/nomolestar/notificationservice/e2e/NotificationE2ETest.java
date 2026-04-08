@@ -14,7 +14,11 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -42,8 +46,12 @@ class NotificationE2ETest {
     static class TestSecurityConfig {
         @Bean
         @Primary
+        @Order(1)
         SecurityFilterChain testSecurityFilterChain(HttpSecurity http) throws Exception {
-            http.csrf(c -> c.disable()).authorizeHttpRequests(a -> a.anyRequest().permitAll());
+            http.csrf(c -> c.disable())
+                    .anonymous(a -> a.principal("testUser")
+                            .authorities(List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                    .authorizeHttpRequests(a -> a.anyRequest().permitAll());
             return http.build();
         }
     }

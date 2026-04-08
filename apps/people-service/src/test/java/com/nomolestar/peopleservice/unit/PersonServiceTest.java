@@ -13,13 +13,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,6 +33,9 @@ class PersonServiceTest {
     @Mock private PersonRepository personRepository;
     @Mock private WebClient.Builder webClientBuilder;
     @Mock private WebClient webClient;
+    @Mock private WebClient.RequestHeadersUriSpec<?> requestHeadersUriSpec;
+    @Mock private WebClient.RequestHeadersSpec<?> requestHeadersSpec;
+    @Mock private WebClient.ResponseSpec responseSpec;
 
     private PersonService personService;
     private PersonEntity personEntity;
@@ -107,5 +115,49 @@ class PersonServiceTest {
         when(personRepository.findById(99)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> personService.deleteById(99))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    private void mockWebClientSuccess() {
+        doReturn(requestHeadersUriSpec).when(webClient).get();
+        doReturn(requestHeadersSpec).when(requestHeadersUriSpec).uri(anyString());
+        doReturn(requestHeadersSpec).when(requestHeadersSpec).header(anyString(), anyString());
+        doReturn(responseSpec).when(requestHeadersSpec).retrieve();
+        doReturn(Mono.just(ResponseEntity.ok().<Void>build())).when(responseSpec).toBodilessEntity();
+    }
+
+    @Test
+    void create_savesAndReturnsDTO() {
+        PersonCreateDTO dto = new PersonCreateDTO(10, "New Person", PersonRole.WITNESS, 25, "New witness");
+        PersonEntity savedEntity = PersonEntity.builder()
+                .id(2).caseId(10).fullName("New Person")
+                .role(PersonRole.WITNESS).age(25).description("New witness")
+                .build();
+
+        mockWebClientSuccess();
+        when(personRepository.save(any())).thenReturn(savedEntity);
+
+        PersonResponseDTO result = personService.create(dto, "Bearer token");
+
+        assertThat(result.fullName()).isEqualTo("New Person");
+        assertThat(result.caseId()).isEqualTo(10);
+        assertThat(result.role()).isEqualTo(PersonRole.WITNESS);
+        verify(personRepository).save(any());
+    }
+
+    @Test
+    void create_caseNotFound_throwsResourceNotFoundException() {
+        PersonCreateDTO dto = new PersonCreateDTO(999, "New Person", PersonRole.WITNESS, 25, "New witness");
+
+        doReturn(requestHeadersUriSpec).when(webClient).get();
+        doReturn(requestHeadersSpec).when(requestHeadersUriSpec).uri(anyString());
+        doReturn(requestHeadersSpec).when(requestHeadersSpec).header(anyString(), anyString());
+        doReturn(responseSpec).when(requestHeadersSpec).retrieve();
+        doReturn(Mono.error(WebClientResponseException.create(
+                404, "Not Found", HttpHeaders.EMPTY, null, null)))
+                .when(responseSpec).toBodilessEntity();
+
+        assertThatThrownBy(() -> personService.create(dto, "Bearer token"))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Case with id 999 not found");
     }
 }

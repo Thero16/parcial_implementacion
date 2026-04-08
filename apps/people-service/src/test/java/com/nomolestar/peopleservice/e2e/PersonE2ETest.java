@@ -14,15 +14,19 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -45,8 +49,11 @@ class PersonE2ETest {
     static class TestSecurityConfig {
         @Bean
         @Primary
+        @Order(1)
         SecurityFilterChain testSecurityFilterChain(HttpSecurity http) throws Exception {
             http.csrf(c -> c.disable())
+                    .anonymous(a -> a.principal("testUser")
+                            .authorities(List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))))
                     .authorizeHttpRequests(a -> a.anyRequest().permitAll());
             return http.build();
         }
@@ -67,10 +74,10 @@ class PersonE2ETest {
             WebClient.Builder mockBuilder = mock(WebClient.Builder.class);
 
             when(mockBuilder.build()).thenReturn(mockClient);
-            when(mockClient.get()).thenReturn(requestHeadersUriSpec);
-            when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
-            when(requestHeadersSpec.header(anyString(), any())).thenReturn(requestHeadersSpec);
-            when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+            doReturn(requestHeadersUriSpec).when(mockClient).get();
+            doReturn(requestHeadersSpec).when(requestHeadersUriSpec).uri(anyString());
+            doReturn(requestHeadersSpec).when(requestHeadersSpec).header(anyString(), any());
+            doReturn(responseSpec).when(requestHeadersSpec).retrieve();
             when(responseSpec.toBodilessEntity())
                     .thenReturn(Mono.just(ResponseEntity.ok().build()));
 

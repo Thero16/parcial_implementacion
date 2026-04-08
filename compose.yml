@@ -19,10 +19,11 @@ services:
     networks:
       - apps-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} && psql -U ${POSTGRES_USER} -c \"SELECT 1 FROM pg_database WHERE datname='tasks_db'\" | grep -q 1"]
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 20
+      start_period: 10s
 
   # ─────────────────────────────────────────
   # KEYCLOAK
@@ -63,6 +64,8 @@ services:
       dockerfile: Dockerfile
     container_name: serversc
     restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "8888:8888"
     networks:
@@ -141,6 +144,10 @@ services:
       EUREKA_URL: ${EUREKA_URL}
       KEYCLOAK_JWK_URI: ${KEYCLOAK_JWK_URI}
       KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -171,6 +178,10 @@ services:
       EUREKA_URL: ${EUREKA_URL}
       KEYCLOAK_JWK_URI: ${KEYCLOAK_JWK_URI}
       KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
     depends_on:
       rabbitmq:
         condition: service_healthy

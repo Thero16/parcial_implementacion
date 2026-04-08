@@ -25,6 +25,12 @@ spring:
     init:
       mode: always
 
+  rabbitmq:
+    host: ${RABBITMQ_HOST}
+    port: ${RABBITMQ_PORT}
+    username: ${RABBITMQ_USER}
+    password: ${RABBITMQ_PASSWORD}
+
   security:
     oauth2:
       resourceserver:

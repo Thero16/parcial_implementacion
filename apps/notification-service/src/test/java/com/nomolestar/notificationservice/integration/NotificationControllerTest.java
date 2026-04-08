@@ -1,5 +1,6 @@
 package com.nomolestar.notificationservice.integration;
 
+import com.nomolestar.notificationservice.config.SecurityConfig;
 import com.nomolestar.notificationservice.controller.NotificationController;
 import com.nomolestar.notificationservice.dto.NotificationResponseDTO;
 import com.nomolestar.notificationservice.enums.NotificationType;
@@ -9,6 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -22,6 +25,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(NotificationController.class)
+@Import(SecurityConfig.class)
 class NotificationControllerTest {
 
     @Autowired
@@ -29,6 +33,9 @@ class NotificationControllerTest {
 
     @MockBean
     private NotificationService notificationService;
+
+    @MockBean
+    private JwtDecoder jwtDecoder;
 
     private NotificationResponseDTO sampleNotification() {
         return new NotificationResponseDTO(1, "New evidence added to case 1",

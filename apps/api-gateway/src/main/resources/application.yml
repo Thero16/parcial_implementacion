@@ -42,6 +42,21 @@ spring:
           predicates:
             - Path=/evidences/**
 
+        - id: workflow-service
+          uri: lb://workflow-service
+          predicates:
+            - Path=/tasks/**
+
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/notifications/**
+
+        - id: audit-service
+          uri: lb://audit-service
+          predicates:
+            - Path=/audit-logs/**
+
   security:
     oauth2:
       resourceserver:

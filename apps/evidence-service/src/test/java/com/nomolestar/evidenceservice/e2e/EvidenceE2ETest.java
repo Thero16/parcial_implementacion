@@ -27,8 +27,11 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import org.springframework.core.annotation.Order;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -55,8 +58,11 @@ class EvidenceE2ETest {
     static class TestSecurityConfig {
         @Bean
         @Primary
+        @Order(1)
         SecurityFilterChain testSecurityFilterChain(HttpSecurity http) throws Exception {
             http.csrf(c -> c.disable())
+                    .anonymous(a -> a.principal("testUser")
+                            .authorities(List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))))
                     .authorizeHttpRequests(a -> a.anyRequest().permitAll());
             return http.build();
         }
@@ -77,10 +83,11 @@ class EvidenceE2ETest {
             WebClient.Builder mockBuilder = mock(WebClient.Builder.class);
 
             when(mockBuilder.build()).thenReturn(mockClient);
-            when(mockClient.get()).thenReturn(requestHeadersUriSpec);
-            when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
-            when(requestHeadersSpec.header(anyString(), any())).thenReturn(requestHeadersSpec);
-            when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+            // use doReturn(...) to avoid Mockito generics mismatch with WebClient fluent interfaces
+            doReturn(requestHeadersUriSpec).when(mockClient).get();
+            doReturn(requestHeadersSpec).when(requestHeadersUriSpec).uri(anyString());
+            doReturn(requestHeadersSpec).when(requestHeadersSpec).header(anyString(), any());
+            doReturn(responseSpec).when(requestHeadersSpec).retrieve();
             when(responseSpec.toBodilessEntity())
                     .thenReturn(Mono.just(ResponseEntity.ok().build()));
 

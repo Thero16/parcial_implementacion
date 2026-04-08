@@ -18,6 +18,9 @@ spring:
       resourceserver:
         jwt:
           jwk-set-uri: http://localhost:9999
+  sql:
+    init:
+      mode: never
 services:
   case-service:
     url: http://localhost:9999/cases

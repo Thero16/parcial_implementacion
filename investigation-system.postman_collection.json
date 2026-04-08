@@ -1,0 +1,897 @@
+{
+  "info": {
+    "name": "Investigation System",
+    "_postman_id": "201f4b7e-fd69-4dc4-8980-d2ea885cd8f7",
+    "description": "Full test suite for all 6 microservices. \n\nSETUP:\n1. Set collection variable `keycloak_url` = http://localhost:8080\n2. Run '0. Get Token' first — it auto-saves the token.\n3. All other requests use {{token}} automatically.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",       "value": "http://localhost:9000" },
+    { "key": "keycloak_url",  "value": "http://localhost:8080" },
+    { "key": "realm",         "value": "spring" },
+    { "key": "client_id",     "value": "microservices" },
+    { "key": "username",      "value": "admin_user" },
+    { "key": "password",      "value": "hello" },
+    { "key": "token",         "value": "" },
+    { "key": "case_id",       "value": "1" },
+    { "key": "task_id",       "value": "1" },
+    { "key": "evidence_id",   "value": "1" },
+    { "key": "person_id",     "value": "1" },
+    { "key": "notification_id","value": "1" }
+  ],
+  "item": [
+    {
+      "name": "0. Auth",
+      "item": [
+        {
+          "name": "Get Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.access_token) {",
+                  "    pm.collectionVariables.set('token', json.access_token);",
+                  "    pm.test('Token obtained', () => pm.response.to.have.status(200));",
+                  "} else {",
+                  "    pm.test('Token NOT obtained — check username/password/client_id', () => false);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "password" },
+                { "key": "client_id",  "value": "{{client_id}}" },
+                { "key": "username",   "value": "{{username}}" },
+                { "key": "password",   "value": "{{password}}" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloak_url}}/realms/{{realm}}/protocol/openid-connect/token",
+              "host": ["{{keycloak_url}}"],
+              "path": ["realms", "{{realm}}", "protocol", "openid-connect", "token"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Case Service",
+      "item": [
+        {
+          "name": "Create Case",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "var json = pm.response.json();",
+                  "if (json.id) pm.collectionVariables.set('case_id', json.id);",
+                  "pm.test('Has id', () => pm.expect(json.id).to.be.a('number'));",
+                  "pm.test('Status is OPEN', () => pm.expect(json.status).to.eql('OPEN'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Murder at the Mansion\",\n  \"description\": \"A suspicious death was reported at Blackwood Manor.\",\n  \"status\": \"OPEN\",\n  \"priority\": \"HIGH\",\n  \"assignedDetective\": \"detective1\",\n  \"createdAt\": \"2026-04-07T10:00:00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/cases",
+              "host": ["{{baseUrl}}"],
+              "path": ["cases"]
+            }
+          }
+        },
+        {
+          "name": "Get All Cases",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/cases",
+              "host": ["{{baseUrl}}"],
+              "path": ["cases"]
+            }
+          }
+        },
+        {
+          "name": "Get Case by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ID matches', () => pm.expect(pm.response.json().id).to.eql(parseInt(pm.collectionVariables.get('case_id'))));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/cases/{{case_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["cases", "{{case_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Case",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status updated to IN_PROGRESS', () => pm.expect(pm.response.json().status).to.eql('IN_PROGRESS'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Murder at the Mansion\",\n  \"description\": \"Investigation is now active.\",\n  \"status\": \"IN_PROGRESS\",\n  \"priority\": \"HIGH\",\n  \"assignedDetective\": \"detective1\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/cases/{{case_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["cases", "{{case_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Case Not Found (404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/cases/99999",
+              "host": ["{{baseUrl}}"],
+              "path": ["cases", "99999"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. People Service",
+      "item": [
+        {
+          "name": "Create Person (Suspect)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "var json = pm.response.json();",
+                  "if (json.id) pm.collectionVariables.set('person_id', json.id);",
+                  "pm.test('Has id', () => pm.expect(json.id).to.be.a('number'));",
+                  "pm.test('Role is SUSPECT', () => pm.expect(json.role).to.eql('SUSPECT'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"caseId\": {{case_id}},\n  \"fullName\": \"Victor Blackwood\",\n  \"role\": \"SUSPECT\",\n  \"age\": 45,\n  \"description\": \"The victim's nephew, found at the scene.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/people",
+              "host": ["{{baseUrl}}"],
+              "path": ["people"]
+            }
+          }
+        },
+        {
+          "name": "Get All People",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/people",
+              "host": ["{{baseUrl}}"],
+              "path": ["people"]
+            }
+          }
+        },
+        {
+          "name": "Get People by Case ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/people/case/{{case_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["people", "case", "{{case_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Person by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/people/{{person_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["people", "{{person_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Person",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Role updated to WITNESS', () => pm.expect(pm.response.json().role).to.eql('WITNESS'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Victor Blackwood\",\n  \"role\": \"WITNESS\",\n  \"age\": 45,\n  \"description\": \"Reclassified as witness after alibi confirmed.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/people/{{person_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["people", "{{person_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Evidence Service",
+      "item": [
+        {
+          "name": "Create Evidence",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "var json = pm.response.json();",
+                  "if (json.evidenceId) pm.collectionVariables.set('evidence_id', json.evidenceId);",
+                  "pm.test('Has evidenceId', () => pm.expect(json.evidenceId).to.be.a('number'));",
+                  "pm.test('Type is WEAPON', () => pm.expect(json.evidenceType).to.eql('WEAPON'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"caseId\": {{case_id}},\n  \"evidenceType\": \"WEAPON\",\n  \"description\": \"Antique letter opener found near the body\",\n  \"locationFound\": \"Study room, east wing\",\n  \"dateCollected\": \"2026-04-07T10:30:00\",\n  \"collectedBy\": \"detective1\",\n  \"fileUrl\": null,\n  \"custodyStatus\": \"COLLECTED\",\n  \"currentCustodian\": \"detective1\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evidences",
+              "host": ["{{baseUrl}}"],
+              "path": ["evidences"]
+            }
+          }
+        },
+        {
+          "name": "Get All Evidences",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/evidences",
+              "host": ["{{baseUrl}}"],
+              "path": ["evidences"]
+            }
+          }
+        },
+        {
+          "name": "Get Evidence by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/evidences/{{evidence_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["evidences", "{{evidence_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Evidence by Case ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/evidences/case/{{case_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["evidences", "case", "{{case_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Evidence (transfer custody)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Custody status updated', () => pm.expect(pm.response.json().custodyStatus).to.eql('IN_ANALYSIS'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"evidenceType\": \"WEAPON\",\n  \"description\": \"Antique letter opener found near the body\",\n  \"locationFound\": \"Study room, east wing\",\n  \"dateCollected\": \"2026-04-07T10:30:00\",\n  \"collectedBy\": \"detective1\",\n  \"fileUrl\": null,\n  \"custodyStatus\": \"IN_ANALYSIS\",\n  \"currentCustodian\": \"lab_analyst1\",\n  \"transferReason\": \"Sent for fingerprint analysis\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evidences/{{evidence_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["evidences", "{{evidence_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Custody History",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/evidences/{{evidence_id}}/custody-history",
+              "host": ["{{baseUrl}}"],
+              "path": ["evidences", "{{evidence_id}}", "custody-history"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Workflow Service (Tasks)",
+      "item": [
+        {
+          "name": "Create Task",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "var json = pm.response.json();",
+                  "if (json.id) pm.collectionVariables.set('task_id', json.id);",
+                  "pm.test('Has id', () => pm.expect(json.id).to.be.a('number'));",
+                  "pm.test('Status is PENDING', () => pm.expect(json.status).to.eql('PENDING'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Interview mansion staff\",\n  \"description\": \"Question all staff present on the night of the incident.\",\n  \"caseId\": {{case_id}},\n  \"priority\": \"HIGH\",\n  \"assignedTo\": \"detective1\",\n  \"dueDate\": \"2026-04-10T17:00:00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tasks",
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks"]
+            }
+          }
+        },
+        {
+          "name": "Get All Tasks",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/tasks",
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks"]
+            }
+          }
+        },
+        {
+          "name": "Get Task by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/tasks/{{task_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks", "{{task_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Tasks by Case ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/tasks/case/{{case_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks", "case", "{{case_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Task (mark IN_PROGRESS)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status updated', () => pm.expect(pm.response.json().status).to.eql('IN_PROGRESS'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Interview mansion staff\",\n  \"description\": \"Question all staff present on the night of the incident.\",\n  \"status\": \"IN_PROGRESS\",\n  \"priority\": \"HIGH\",\n  \"assignedTo\": \"detective1\",\n  \"dueDate\": \"2026-04-10T17:00:00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tasks/{{task_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks", "{{task_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Task (mark COMPLETED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status is COMPLETED', () => pm.expect(pm.response.json().status).to.eql('COMPLETED'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Interview mansion staff\",\n  \"description\": \"All staff interviewed.\",\n  \"status\": \"COMPLETED\",\n  \"priority\": \"HIGH\",\n  \"assignedTo\": \"detective1\",\n  \"dueDate\": \"2026-04-10T17:00:00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tasks/{{task_id}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tasks", "{{task_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Notification Service",
+      "item": [
+        {
+          "name": "Get All Notifications",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "var arr = pm.response.json();",
+                  "if (arr.length > 0) pm.collectionVariables.set('notification_id', arr[0].id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/notifications",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications"]
+            }
+          }
+        },
+        {
+          "name": "Get Unread Notifications",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "var arr = pm.response.json();",
+                  "pm.test('All are unread', () => arr.forEach(n => pm.expect(n.read).to.be.false));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/unread",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "unread"]
+            }
+          }
+        },
+        {
+          "name": "Mark Notification as Read",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Read is true', () => pm.expect(pm.response.json().read).to.be.true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/{{notification_id}}/read",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications", "{{notification_id}}", "read"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Audit Service",
+      "item": [
+        {
+          "name": "Get All Audit Logs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "pm.test('Has entries (events were published)', () => pm.expect(pm.response.json().length).to.be.above(0));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/audit-logs",
+              "host": ["{{baseUrl}}"],
+              "path": ["audit-logs"]
+            }
+          }
+        },
+        {
+          "name": "Get Audit Logs by Event Type",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns array', () => pm.expect(pm.response.json()).to.be.an('array'));",
+                  "var arr = pm.response.json();",
+                  "pm.test('All match event type', () => arr.forEach(l => pm.expect(l.eventType).to.eql('case.created')));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/audit-logs?eventType=case.created",
+              "host": ["{{baseUrl}}"],
+              "path": ["audit-logs"],
+              "query": [{ "key": "eventType", "value": "case.created" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. RabbitMQ Integration (end-to-end)",
+      "item": [
+        {
+          "name": "Create Case → triggers workflow + audit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 — case created', () => pm.response.to.have.status(201));",
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('case_id', json.id);",
+                  "pm.test('Case has id', () => pm.expect(json.id).to.be.a('number'));",
+                  "pm.test('>>> Now run: Get Tasks by Case ID (expect default tasks)', () => true);",
+                  "pm.test('>>> Now run: Get All Audit Logs (expect case.created entry)', () => true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"E2E Test Case\",\n  \"description\": \"Testing RabbitMQ event chain.\",\n  \"status\": \"OPEN\",\n  \"priority\": \"MEDIUM\",\n  \"assignedDetective\": \"detective1\",\n  \"createdAt\": \"2026-04-07T12:00:00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/cases",
+              "host": ["{{baseUrl}}"],
+              "path": ["cases"]
+            }
+          }
+        },
+        {
+          "name": "Add Evidence → triggers notification",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 — evidence created', () => pm.response.to.have.status(201));",
+                  "var json = pm.response.json();",
+                  "pm.collectionVariables.set('evidence_id', json.evidenceId);",
+                  "pm.test('>>> Now run: Get Unread Notifications (expect evidence.added notification)', () => true);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"caseId\": {{case_id}},\n  \"evidenceType\": \"FINGERPRINT\",\n  \"description\": \"Fingerprints lifted from the study window\",\n  \"locationFound\": \"Study window frame\",\n  \"dateCollected\": \"2026-04-07T11:00:00\",\n  \"collectedBy\": \"detective1\",\n  \"fileUrl\": null,\n  \"custodyStatus\": \"COLLECTED\",\n  \"currentCustodian\": \"detective1\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evidences",
+              "host": ["{{baseUrl}}"],
+              "path": ["evidences"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

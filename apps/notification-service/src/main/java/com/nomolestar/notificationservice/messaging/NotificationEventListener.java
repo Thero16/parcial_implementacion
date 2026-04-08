@@ -1,27 +1,26 @@
 package com.nomolestar.notificationservice.messaging;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nomolestar.notificationservice.config.RabbitMQConfig;
 import com.nomolestar.notificationservice.enums.NotificationType;
 import com.nomolestar.notificationservice.model.NotificationEntity;
 import com.nomolestar.notificationservice.service.NotificationService;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Component
 public class NotificationEventListener {
 
     private final NotificationService notificationService;
-    private final Jackson2JsonMessageConverter messageConverter;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public NotificationEventListener(NotificationService notificationService,
-                                      Jackson2JsonMessageConverter messageConverter) {
+    public NotificationEventListener(NotificationService notificationService) {
         this.notificationService = notificationService;
-        this.messageConverter = messageConverter;
     }
 
     @RabbitListener(queues = RabbitMQConfig.NOTIFICATION_QUEUE)
@@ -33,23 +32,24 @@ public class NotificationEventListener {
         notification.setCreatedAt(LocalDateTime.now());
 
         try {
-            Object converted = messageConverter.fromMessage(message);
+            Map<String, Object> converted = objectMapper.readValue(
+                new String(message.getBody()), new TypeReference<Map<String, Object>>() {});
 
-            if ("evidence.added".equals(routingKey) && converted instanceof LinkedHashMap map) {
+            Object rawCaseId = converted.get("caseId");
+            Integer caseId = rawCaseId instanceof Number n ? n.intValue() : null;
+
+            if ("evidence.added".equals(routingKey)) {
                 notification.setType(NotificationType.EVIDENCE_ADDED);
-                Object caseId = map.get("caseId");
-                notification.setCaseId(caseId instanceof Integer i ? i : null);
-                notification.setMessage("New evidence added to case " + caseId + ": " + map.get("description"));
-            } else if ("task.assigned".equals(routingKey) && converted instanceof LinkedHashMap map) {
+                notification.setCaseId(caseId);
+                notification.setMessage("New evidence added to case " + caseId + " — type: " + converted.get("evidenceType") + ", collected by: " + converted.get("collectedBy"));
+            } else if ("task.assigned".equals(routingKey)) {
                 notification.setType(NotificationType.TASK_ASSIGNED);
-                Object caseId = map.get("caseId");
-                notification.setCaseId(caseId instanceof Integer i ? i : null);
-                notification.setMessage("Task '" + map.get("title") + "' assigned to " + map.get("assignedTo") + " for case " + caseId);
-            } else if ("task.overdue".equals(routingKey) && converted instanceof LinkedHashMap map) {
+                notification.setCaseId(caseId);
+                notification.setMessage("Task '" + converted.get("title") + "' assigned to " + converted.get("assignedTo") + " for case " + caseId);
+            } else if ("task.overdue".equals(routingKey)) {
                 notification.setType(NotificationType.TASK_OVERDUE);
-                Object caseId = map.get("caseId");
-                notification.setCaseId(caseId instanceof Integer i ? i : null);
-                notification.setMessage("Task '" + map.get("title") + "' is overdue for case " + caseId + ". Assigned to: " + map.get("assignedTo"));
+                notification.setCaseId(caseId);
+                notification.setMessage("Task '" + converted.get("title") + "' is overdue for case " + caseId + ". Assigned to: " + converted.get("assignedTo"));
             } else {
                 notification.setType(NotificationType.TASK_ASSIGNED);
                 notification.setMessage("Event received: " + routingKey);
