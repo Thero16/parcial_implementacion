@@ -7,6 +7,9 @@ import DashboardPage from "./pages/DashboardPage";
 import CasesPage from "./pages/CasesPage";
 import PeoplePage from "./pages/PeoplePage";
 import EvidencesPage from "./pages/EvidencesPage";
+import TasksPage from "./pages/TasksPage";
+import NotificationsPage from "./pages/NotificationsPage";
+import AuditLogsPage from "./pages/AuditLogsPage";
 
 export default function App() {
   return (
@@ -35,8 +38,33 @@ export default function App() {
           />
           <Route path="/dashboard/people" element={<PeoplePage />} />
           <Route path="/dashboard/evidences" element={<EvidencesPage />} />
+          <Route
+            path="/dashboard/tasks"
+            element={
+              <ProtectedRoute>
+                <TasksPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/notifications"
+            element={
+              <ProtectedRoute>
+                <NotificationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/audit"
+            element={
+              <ProtectedRoute>
+                <AuditLogsPage />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
   );
 }
+

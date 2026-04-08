@@ -167,6 +167,9 @@ export default function PeoplePage() {
           <NavItem label="Cases" to="/dashboard/cases" />
           <NavItem label="People" to="/dashboard/people" active />
           <NavItem label="Evidences" to="/dashboard/evidences" />
+          <NavItem label="Tasks" to="/dashboard/tasks" />
+          <NavItem label="Notifications" to="/dashboard/notifications" />
+          {hasRole("ADMIN") && <NavItem label="Audit" to="/dashboard/audit" />}
         </nav>
 
         <div className="flex items-center gap-3 flex-shrink-0 ml-auto">
