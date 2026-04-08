@@ -1,10 +1,10 @@
-# 🕵️ Detective Case Management System
+# Detective Case Management System
 
-> A microservices-based web system for managing criminal investigations in the fictional city of **"Las Cariñosas"** — built with Spring Boot, Keycloak, Eureka Service Discovery, and a Vite/React frontend, all orchestrated with Docker Compose.
+> A microservices-based web system for managing criminal investigations in the fictional city of **"Las Cariñosas"** — built with Spring Boot, Keycloak, Eureka Service Discovery, Spring Cloud Config, RabbitMQ, and a Vite/React frontend, all orchestrated with Docker Compose.
 
 ---
 
-## 📖 Project Context
+## Project Context
 
 In the opulent city of *Las Cariñosas*, a serial killer has emerged from the shadows, targeting wealthy families and leaving behind a trail of death and mystery. The investigation falls on the shoulders of **Detective Luis R**, a man tormented by his own demons.
 
@@ -12,7 +12,7 @@ This system was built to support detective teams, analysts, and administrators a
 
 ---
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 The system follows a **microservices architecture** where each service has its own responsibility and persistence layer. All communication goes through a single API Gateway entry point.
 
@@ -25,21 +25,32 @@ The system follows a **microservices architecture** where each service has its o
 ┌────────────────────▼────────────────────────┐
 │              API Gateway                     │
 │              localhost:9000                  │
-└──────┬─────────────┬──────────────┬─────────┘
-       │             │              │
-┌──────▼──────┐ ┌────▼──────┐ ┌────▼───────────┐
-│Case Service │ │  People   │ │Evidence Service │
-│             │ │  Service  │ │                 │
-└──────┬──────┘ └────┬──────┘ └────┬────────────┘
-       │             │              │
-┌──────▼─────────────▼──────────────▼───────────┐
-│                  PostgreSQL                    │
-│     cases_db | people_db | evidences_db        │
-└────────────────────────────────────────────────┘
+└──┬──────────┬──────────┬──────────┬─────────┘
+   │          │          │          │
+┌──▼──────┐ ┌─▼──────┐ ┌─▼──────┐ ┌─▼──────────────┐
+│  Case   │ │ People │ │Evidence│ │Workflow Service │
+│ Service │ │Service │ │Service │ │                 │
+└──┬──────┘ └─┬──────┘ └─┬──────┘ └─┬──────────────┘
+   │          │           │           │
+┌──▼──────────▼───────────▼───────────▼──────────────┐
+│                     PostgreSQL                      │
+│  cases | people | evidences | tasks_db | audit_db  │
+│                  | notifications_db                 │
+└─────────────────────────────────────────────────────┘
+
+┌──────────────────────┐   ┌─────────────────────┐
+│  Audit Service       │   │ Notification Service │
+│  (event consumer)    │   │  (event consumer)    │
+└──────────────────────┘   └─────────────────────┘
 
 ┌───────────────────────┐   ┌────────────────────┐
 │  Keycloak (Auth)      │   │  Eureka Discovery  │
 │  localhost:8080       │   │  localhost:8761    │
+└───────────────────────┘   └────────────────────┘
+
+┌───────────────────────┐   ┌────────────────────┐
+│ Spring Cloud Config   │   │     RabbitMQ       │
+│ serversc:8888         │   │  localhost:15672   │
 └───────────────────────┘   └────────────────────┘
 ```
 
@@ -50,9 +61,14 @@ The system follows a **microservices architecture** where each service has its o
 | **API Gateway** | Single entry point for all frontend requests, JWT validation |
 | **Case Service** | Case lifecycle management (status, priority, assignment) |
 | **People Service** | Manages people in a case (victims, suspects, witnesses) |
-| **Evidence Service** | Evidence management and chain of custody (includes attachments) |
+| **Evidence Service** | Evidence management and chain of custody |
+| **Workflow Service** | Task management per case; publishes overdue events |
+| **Audit Service** | Consumes domain events and persists audit logs |
+| **Notification Service** | Consumes domain events and stores notifications |
 | **Keycloak** | Authentication and role-based authorization |
 | **Eureka** | Service discovery and registration |
+| **Spring Cloud Config (serversc)** | Centralized configuration server for all microservices |
+| **RabbitMQ** | Asynchronous message broker for event-driven communication |
 | **PostgreSQL** | Persistent storage, one database per service |
 
 ### Communication Patterns
@@ -63,7 +79,7 @@ The system follows a **microservices architecture** where each service has its o
 - `POST /evidences` → Evidence Service
 - `POST /tasks` → Workflow Service
 
-**Asynchronous Event-Driven (Pub/Sub):**
+**Asynchronous Event-Driven (Pub/Sub via RabbitMQ):**
 
 | Event | Publisher | Consumers |
 |---|---|---|
@@ -74,7 +90,7 @@ The system follows a **microservices architecture** where each service has its o
 
 ---
 
-## 🔐 Roles & Permissions
+## Roles & Permissions
 
 | Role | Permissions |
 |---|---|
@@ -89,20 +105,20 @@ The system follows a **microservices architecture** where each service has its o
 
 ---
 
-## ⚙️ Prerequisites
+## Prerequisites
 
 - [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/) installed
-- Ports available: `5173`, `8080`, `8761`, `9000`, `5432`
+- Ports available: `5173`, `8080`, `8761`, `8888`, `9000`, `5432`, `5672`, `15672`
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### 1. Configure Environment Variables
 
 The project requires **two `.env` files** before running.
 
-#### 📁 Root `.env` — place at the project root, alongside `docker-compose.yml`
+#### Root `.env` — place at the project root, alongside `compose.yml`
 
 ```env
 # PostgreSQL
@@ -119,6 +135,9 @@ DB_PASSWORD=postgres
 CASE_DB_NAME=cases
 EVIDENCE_DB_NAME=evidences
 PEOPLE_DB_NAME=people
+WORKFLOW_DB_NAME=tasks_db
+AUDIT_DB_NAME=audit_db
+NOTIFICATION_DB_NAME=notifications_db
 KEYCLOAK_DB_NAME=keycloak
 
 # Keycloak Admin Credentials
@@ -142,11 +161,13 @@ KEYCLOAK_ISSUER_URI=http://localhost:8080/realms/spring
 EUREKA_URL=http://eureka:8761/eureka/
 
 # RabbitMQ
+RABBITMQ_HOST=rabbitmq
+RABBITMQ_PORT=5672
 RABBITMQ_USER=admin
 RABBITMQ_PASSWORD=admin123
 ```
 
-#### 📁 Frontend `.env` — place inside the `frontend/` folder
+#### Frontend `.env` — place inside `apps/frontend/`
 
 ```env
 VITE_API_URL=http://localhost:9000
@@ -208,7 +229,7 @@ Inside the `spring` realm, navigate to **Realm roles → Create role** and creat
 
 Inside the `spring` realm, go to **Clients → Create client** and create the following three clients:
 
-> ⚠️ **Important:** When creating each client, **only enable Standard flow**. All other authentication flows (Direct access grants, Implicit flow, Service accounts, etc.) must remain **disabled**.
+> **Important:** When creating each client, **only enable Standard flow**. All other authentication flows (Direct access grants, Implicit flow, Service accounts, etc.) must remain **disabled**.
 
 ---
 
@@ -218,8 +239,8 @@ Inside the `spring` realm, go to **Clients → Create client** and create the fo
 |---|---|
 | Client ID | `frontend` |
 | Client type | `OpenID Connect` |
-| Standard flow | ✅ Enabled |
-| All other flows | ❌ Disabled |
+| Standard flow | Enabled |
+| All other flows | Disabled |
 | **PKCE Method** | **`S256`** |
 | Root URL | `http://localhost:5173` |
 | Home URL | `http://localhost:5173/dashboard` |
@@ -228,7 +249,7 @@ Inside the `spring` realm, go to **Clients → Create client** and create the fo
 | Web origins | `http://localhost:5173` |
 | Admin URL | `http://localhost:5173` |
 
-> 🔒 **PKCE (Proof Key for Code Exchange):** The **PKCE Method** field appears directly in the **Capability config** step during client creation. Set it to `S256` before saving. This is required for secure public client authentication from the browser.
+> **PKCE (Proof Key for Code Exchange):** The **PKCE Method** field appears directly in the **Capability config** step during client creation. Set it to `S256` before saving. This is required for secure public client authentication from the browser.
 
 ---
 
@@ -238,8 +259,8 @@ Inside the `spring` realm, go to **Clients → Create client** and create the fo
 |---|---|
 | Client ID | `api-gateway` |
 | Client type | `OpenID Connect` |
-| Standard flow | ✅ Enabled |
-| All other flows | ❌ Disabled |
+| Standard flow | Enabled |
+| All other flows | Disabled |
 | Root URL | `http://localhost:9000` |
 | Valid redirect URIs | `http://localhost:9000/*` |
 | Web origins | `http://localhost:9000` |
@@ -252,8 +273,8 @@ Inside the `spring` realm, go to **Clients → Create client** and create the fo
 |---|---|
 | Client ID | `microservices` |
 | Client type | `OpenID Connect` |
-| Standard flow | ✅ Enabled |
-| All other flows | ❌ Disabled |
+| Standard flow | Enabled |
+| All other flows | Disabled |
 
 ---
 
@@ -265,38 +286,47 @@ Inside the `spring` realm, go to **Clients → Create client** and create the fo
 | API Gateway | http://localhost:9000 |
 | Keycloak Admin Console | http://localhost:8080 |
 | Eureka Dashboard | http://localhost:8761 |
+| Spring Cloud Config | http://localhost:8888 |
+| RabbitMQ Management UI | http://localhost:15672 |
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 .
-├── docker-compose.yml
-├── .env                    ← Root environment file (you must create this)
-├── frontend/
-│   ├── .env                ← Frontend environment file (you must create this)
-│   └── ...
-├── api-gateway/
-├── case-service/
-├── people-service/
-├── evidence-service/
-└── ...
+├── compose.yml
+├── .env                         ← Root environment file (you must create this)
+├── postgres-init/
+│   └── init.sql
+└── apps/
+    ├── frontend/
+    │   ├── .env                 ← Frontend environment file (you must create this)
+    │   └── ...
+    ├── api-gateway/
+    ├── serversc/                ← Spring Cloud Config Server
+    ├── eureka/
+    ├── case-service/
+    ├── people-service/
+    ├── evidence-service/
+    ├── workflow-service/
+    ├── audit-service/
+    └── notification-service/
 ```
 
 ---
 
-## 📋 Business Rules Summary
+## Business Rules Summary
 
 - A case can have **many evidences** and **many tasks**
 - Evidence must maintain a full **chain of custody** history
 - Tasks can only be assigned to users with the `DETECTIVE` role
 - Only `ADMIN` users can **delete** cases or evidence
-- All major system events are published for audit and notification purposes
+- All major system events are published to RabbitMQ for audit and notification purposes
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |---|---|
@@ -305,6 +335,8 @@ Inside the `spring` realm, go to **Clients → Create client** and create the fo
 | Microservices | Spring Boot |
 | Authentication | Keycloak |
 | Service Discovery | Netflix Eureka |
+| Centralized Config | Spring Cloud Config Server |
+| Messaging | RabbitMQ |
 | Database | PostgreSQL |
 | Containerization | Docker / Docker Compose |
 
@@ -314,19 +346,20 @@ Inside the `spring` realm, go to **Clients → Create client** and create the fo
 
 ### Objective
 
-The test suite validates the correctness of the business logic, the interaction between application layers, and the real HTTP behavior of each microservice's API. Tests are organized into three levels — unit, integration, and end-to-end — following the Testing Pyramid approach.
+The test suite validates the correctness of the business logic, the interaction between application layers, and the real HTTP behavior of each microservice's API. Tests are organized into four levels following the Testing Pyramid approach.
 
 ---
 
 ### Test Classification
 
-Each of the six business microservices (case-service, evidence-service, people-service, workflow-service, audit-service, notification-service) contains three types of tests:
+Each of the six business microservices (case-service, evidence-service, people-service, workflow-service, audit-service, notification-service) contains four types of tests:
 
 | Type | Framework | Scope |
 |---|---|---|
 | **Unit** | JUnit 5 + Mockito | Service layer in isolation — dependencies mocked |
 | **Integration** | Spring `@WebMvcTest` + MockMvc | Controller + Service wired together, no real HTTP |
 | **E2E** | Spring `@SpringBootTest` + `TestRestTemplate` | Full application stack, real HTTP on a random port |
+| **Repository** | Spring `@DataJpaTest` | Repository layer against an in-memory H2 database |
 
 #### Unit Tests — `unit/`
 
@@ -367,6 +400,19 @@ Each `XxxE2ETest` boots the full Spring context on a random port using `@SpringB
 | Audit | `AuditLogE2ETest` | List audit logs → 200; retrieve by ID → 200 |
 | Notification | `NotificationE2ETest` | List notifications → 200; retrieve by ID → 200 |
 
+#### Repository Tests — `repository/`
+
+Each `XxxRepositoryTest` uses `@DataJpaTest` to validate repository queries and persistence behaviour against H2:
+
+| Service | Test class |
+|---|---|
+| Case | `CaseRepositoryTest` |
+| Evidence | `EvidenceRepositoryTest` |
+| People | `PersonRepositoryTest` |
+| Workflow | `TaskRepositoryTest` |
+| Audit | `AuditLogRepositoryTest` |
+| Notification | `NotificationRepositoryTest` |
+
 ---
 
 ### Test Environment Configuration
@@ -376,6 +422,7 @@ All services share the same test profile pattern. The file `src/test/resources/a
 - **H2 in-memory database** (PostgreSQL compatibility mode) — no external database required
 - **Spring Cloud Config disabled** — `spring.cloud.config.enabled: false`
 - **Keycloak JWT disabled** — `jwk-set-uri` points to a non-existent local address so security filters are bypassed by test configuration
+- **RabbitMQ listeners disabled** — `auto-startup: false` prevents listener containers from starting during tests
 - **DDL auto: create-drop** — schema is recreated for each test run
 
 ```yaml
@@ -394,6 +441,10 @@ spring:
       enabled: false
   config:
     import: ""
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
 ```
 
 ---
@@ -441,15 +492,21 @@ mvn test -pl apps/case-service -Dtest="**/integration/**"
 mvn test -pl apps/case-service -Dtest="**/e2e/**"
 ```
 
+#### Run only repository tests
+
+```bash
+mvn test -pl apps/case-service -Dtest="**/repository/**"
+```
+
 ---
 
 ### Conclusions
 
 | Aspect | Assessment |
 |---|---|
-| **Layer coverage** | All three testing layers (unit, integration, E2E) are implemented for each of the six business services |
+| **Layer coverage** | All four testing layers (unit, integration, E2E, repository) are implemented for each of the six business services |
 | **Business rule coverage** | Key rules are exercised: ADMIN-only delete, chain of custody recording on custodian change, default task creation on CaseCreated, overdue task detection |
-| **Event-driven coverage** | Unit tests verify event publishing via mocked `RabbitTemplate`; integration tests mock the publisher component |
+| **Event-driven coverage** | Unit tests verify event publishing via mocked `RabbitTemplate`; integration tests mock the publisher component; RabbitMQ listeners are disabled in the test profile |
 | **Error path coverage** | Not-found exceptions (404), validation errors (400), and unauthorized access are covered in both integration and E2E tests |
 | **Test isolation** | Each test is fully isolated — H2 resets between runs, no shared state between test classes |
 | **Improvement areas** | RabbitMQ consumer logic (listeners) could benefit from dedicated unit tests using embedded broker; contract tests between services would strengthen the event-driven guarantees |
