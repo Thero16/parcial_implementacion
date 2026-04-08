@@ -6,7 +6,6 @@ import com.nomolestar.notificationservice.model.NotificationEntity;
 import com.nomolestar.notificationservice.repository.NotificationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -32,9 +31,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 class NotificationE2ETest {
-
-    @MockBean
-    private RabbitTemplate rabbitTemplate;
 
     @Autowired
     private TestRestTemplate restTemplate;

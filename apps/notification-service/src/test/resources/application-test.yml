@@ -13,6 +13,10 @@ spring:
       enabled: false
   config:
     import: ""
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
   security:
     oauth2:
       resourceserver:
