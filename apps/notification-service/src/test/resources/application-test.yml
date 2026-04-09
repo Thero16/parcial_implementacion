@@ -22,3 +22,7 @@ spring:
       resourceserver:
         jwt:
           jwk-set-uri: http://localhost:9999
+  
+  sql:
+    init:
+      mode: never
