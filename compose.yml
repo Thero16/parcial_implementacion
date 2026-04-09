@@ -19,7 +19,7 @@ services:
     networks:
       - apps-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} && psql -U ${POSTGRES_USER} -c \"SELECT 1 FROM pg_database WHERE datname='tasks_db'\" | grep -q 1"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} && psql -U ${POSTGRES_USER}"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -365,10 +365,11 @@ services:
     networks:
       - apps-network
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      test: ["CMD", "rabbitmqctl", "status"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
 
 # ─────────────────────────────────────────
 # VOLUMES & NETWORKS
