@@ -1,3 +1,5 @@
+TRUNCATE TABLE tasks RESTART IDENTITY CASCADE;
+
 INSERT INTO tasks (title, description, case_id, status, priority, assigned_to, due_date, created_at) VALUES
 ('Initial investigation review', 'Review all initial evidence and documents for the case', 1, 'PENDING', 'HIGH', 'detective_smith', '2026-05-01 00:00:00', '2026-04-01 09:00:00'),
 ('Interview main witness', 'Conduct detailed interview with the primary witness', 1, 'IN_PROGRESS', 'HIGH', 'detective_jones', '2026-04-15 00:00:00', '2026-04-01 10:00:00'),
