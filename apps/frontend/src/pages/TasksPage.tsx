@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getTasks, createTask, updateTask, deleteTask } from "../services/taskService";
+import { getCases } from "../services/caseService";
 import { hasRole } from "../auth/roles.utils";
 
 function MoonLogo() {
@@ -60,6 +61,7 @@ const EMPTY_FORM = { title: "", description: "", caseId: "", priority: "MEDIUM",
 export default function TasksPage() {
   const { user, logout, loading, authenticated } = useAuth();
   const [tasks, setTasks] = useState<any[]>([]);
+  const [cases, setCases] = useState<any[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
@@ -68,7 +70,9 @@ export default function TasksPage() {
   async function load() {
     try {
       setLoadingTasks(true);
-      setTasks(await getTasks());
+      const [tasksData, casesData] = await Promise.all([getTasks(), getCases()]);
+      setTasks(tasksData);
+      setCases(casesData);
     } catch (e) {
       console.error(e);
     } finally {
@@ -106,6 +110,10 @@ export default function TasksPage() {
 
   const displayName = user?.name || [user?.given_name, user?.family_name].filter(Boolean).join(" ") || user?.preferred_username || "Unknown Agent";
   const initials = displayName.split(" ").slice(0, 2).map((w: string) => w[0]?.toUpperCase() ?? "").join("");
+
+  const selectClass = "bg-black border border-white/20 text-white font-elite text-[0.65rem] tracking-wider uppercase px-3 py-2 focus:outline-none focus:border-white/50 [&>option]:bg-neutral-900 [&>option]:text-white";
+  const inputClass  = "bg-transparent border border-white/20 text-white font-crimson text-base px-3 py-2 focus:outline-none focus:border-white/50";
+  const labelClass  = "font-elite text-[0.6rem] tracking-[0.15em] uppercase text-white/50";
 
   return (
     <div className="min-h-screen flex flex-col bg-black relative">
@@ -173,7 +181,9 @@ export default function TasksPage() {
                   <tr key={t.id} className="border-b border-white/5 hover:bg-white/[0.04] transition-colors duration-150">
                     <td className="p-4 font-elite text-[0.65rem] tracking-widest text-white/40">#{t.id}</td>
                     <td className="p-4 font-crimson text-base text-white">{t.title}</td>
-                    <td className="p-4 font-elite text-[0.65rem] tracking-wider text-white/60">#{t.caseId}</td>
+                    <td className="p-4 font-elite text-[0.65rem] tracking-wider text-white/60">
+                      {cases.find(c => c.id === t.caseId)?.title ?? `#${t.caseId}`}
+                    </td>
                     <td className="p-4 font-elite text-[0.65rem] tracking-wider text-white/60">{t.assignedTo ?? "—"}</td>
                     <td className="p-4"><PriorityBadge value={t.priority} /></td>
                     <td className="p-4"><StatusBadge value={t.status} /></td>
@@ -208,30 +218,55 @@ export default function TasksPage() {
             <button onClick={() => setModalOpen(false)} className="absolute top-4 right-4 text-white/30 hover:text-white font-elite text-xs tracking-widest uppercase">✕ Close</button>
             <h2 className="font-playfair font-bold text-2xl text-white mb-6">{editing ? "Edit Task" : "New Task"}</h2>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              {[
-                { label: "Title *", key: "title", type: "text", required: true },
-                { label: "Description", key: "description", type: "text" },
-                { label: "Case ID *", key: "caseId", type: "number", required: true },
-                { label: "Assigned To", key: "assignedTo", type: "text" },
-                { label: "Due Date", key: "dueDate", type: "datetime-local" },
-              ].map(({ label, key, type, required }) => (
-                <div key={key} className="flex flex-col gap-1">
-                  <label className="font-elite text-[0.6rem] tracking-[0.15em] uppercase text-white/50">{label}</label>
-                  <input
-                    type={type}
-                    required={required}
-                    value={(form as any)[key]}
-                    onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                    className="bg-transparent border border-white/20 text-white font-crimson text-base px-3 py-2 focus:outline-none focus:border-white/50"
-                  />
-                </div>
-              ))}
+
+              {/* Title */}
               <div className="flex flex-col gap-1">
-                <label className="font-elite text-[0.6rem] tracking-[0.15em] uppercase text-white/50">Priority *</label>
-                <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className="bg-black border border-white/20 text-white font-elite text-[0.65rem] tracking-wider uppercase px-3 py-2 focus:outline-none focus:border-white/50">
+                <label className={labelClass}>Title *</label>
+                <input type="text" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={inputClass} />
+              </div>
+
+              {/* Description */}
+              <div className="flex flex-col gap-1">
+                <label className={labelClass}>Description</label>
+                <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className={inputClass} />
+              </div>
+
+              {/* Case select */}
+              <div className="flex flex-col gap-1">
+                <label className={labelClass}>Case *</label>
+                <select
+                  required
+                  value={form.caseId}
+                  onChange={(e) => setForm({ ...form, caseId: e.target.value })}
+                  className={selectClass}
+                >
+                  <option value="" disabled>Select a case...</option>
+                  {cases.map((c) => (
+                    <option key={c.id} value={c.id}>#{c.id} — {c.title}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Assigned To */}
+              <div className="flex flex-col gap-1">
+                <label className={labelClass}>Assigned To</label>
+                <input type="text" value={form.assignedTo} onChange={(e) => setForm({ ...form, assignedTo: e.target.value })} className={inputClass} />
+              </div>
+
+              {/* Due Date */}
+              <div className="flex flex-col gap-1">
+                <label className={labelClass}>Due Date</label>
+                <input type="datetime-local" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} className={`${inputClass} [color-scheme:dark]`} />
+              </div>
+
+              {/* Priority */}
+              <div className="flex flex-col gap-1">
+                <label className={labelClass}>Priority *</label>
+                <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })} className={selectClass}>
                   {["LOW", "MEDIUM", "HIGH"].map((v) => <option key={v} value={v}>{v}</option>)}
                 </select>
               </div>
+
               <button type="submit" className="mt-2 border border-white/30 text-white/70 font-elite text-[0.62rem] tracking-[0.18em] uppercase px-5 py-3 hover:border-white hover:text-white transition-all">
                 {editing ? "Save Changes" : "Create Task"}
               </button>
